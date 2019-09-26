@@ -1,4 +1,10 @@
-### Comparing Performance of Lasso, Group Lasso, and Linear Regression with Categorical Predictors 
+## Research Project about Machine Learning Project
+
+#### Brief Introduction
+This project is conducted by Professor Amanda Montoya and me, and this project was invited by 2019 Symposium on Data Science & Statistics for poster presentation. The poster and presentation slides are included in this repository. Please feel free to check it out. 
+
+#### Title
+**Comparing Performance of Lasso, Group Lasso, and Linear Regression with Categorical Predictors**
 
 #### Abstract
 
