@@ -1,0 +1,161 @@
+---
+title: "Coding_strategies"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library ("ISLR")
+library (glmnet)
+library(gglasso)
+```
+
+```{r}
+wage.data <- Wage
+samp <- sort (sample (1:3000,1000))
+wage.train <- wage.data[samp,]
+wage.test <- wage.data[-samp,]
+```
+
+MSE.linear = 1214.0756
+```{r}
+linear <- lm(wage ~ as.factor(maritl) + as.factor(race) + as.factor(education) + as.factor(jobclass) + as.factor(health) + as.factor(health_ins) + age, data = wage.train)
+coef(linear)
+linear.pre <- predict(linear, wage.test)
+MSE.linear <- mean ((wage.test $ wage - linear.pre)^2)
+```
+
+Dummy Coding (with all first categories as reference groups)
+MSE.lasso.dummy = 1198.359
+```{r}
+dt.maritl <- model.matrix(~wage.train $ maritl - 1)  
+dt.race <- model.matrix(~wage.train $ race - 1)  
+dt.education <- model.matrix(~wage.train $ education - 1)
+dt.jobclass <- model.matrix(~wage.train $ jobclass - 1)
+dt.health <- model.matrix(~wage.train $ health - 1)
+dt.health_ins <- model.matrix(~wage.train $ health_ins - 1)
+xdummy1.train <- cbind(dt.maritl[,-1], dt.race[,-1], dt.education[,-1], dt.jobclass[,-1], dt.health[,-1], dt.health_ins[,-1], wage.train$age)
+y.train <- data.matrix(wage.train $ wage)
+dummy.cv = cv.glmnet(x = xdummy1.train, y = y.train, alpha = 1, nlambda = 1000)
+dummy <- glmnet(xdummy1.train, y.train, alpha = 1, lambda = dummy.cv$lambda.min)
+
+coef(dummy)
+
+dr.maritl <- model.matrix(~wage.test $ maritl - 1)
+dr.race <- model.matrix(~wage.test $ race - 1)  
+dr.education <- model.matrix(~wage.test $ education - 1)
+dr.jobclass <- model.matrix(~wage.test $ jobclass - 1)
+dr.health <- model.matrix(~wage.test $ health - 1)
+dr.health_ins <- model.matrix(~wage.test $ health_ins - 1)
+xdummy1.test <- cbind(dr.maritl[,-1], dr.race[,-1], dr.education[,-1], dr.jobclass[,-1], dr.health[,-1], dr.health_ins[,-1], wage.test$age)
+y.test <- data.matrix(wage.test $ wage)
+lasso.pre.dummy <- predict(dummy, xdummy1.test, s = dummy.cv$lambda.min)
+MSE.lasso.dummy <- mean ((wage.test$wage - lasso.pre.dummy) ^2)
+```
+
+Dummy Coding (with all second categories as reference groups)
+
+```{r}
+dt.maritl <- model.matrix(~wage.train $ maritl - 1)  
+dt.race <- model.matrix(~wage.train $ race - 1)  
+dt.education <- model.matrix(~wage.train $ education - 1)
+dt.jobclass <- model.matrix(~wage.train $ jobclass - 1)
+dt.health <- model.matrix(~wage.train $ health - 1)
+dt.health_ins <- model.matrix(~wage.train $ health_ins - 1)
+xdummy2.train <- cbind(dt.maritl[,-2], dt.race[,-2], dt.education[,-2], dt.jobclass[,-2], dt.health[,-2], dt.health_ins[,-2], wage.train$age)
+y.train <- data.matrix(wage.train $ wage)
+dummy.cv = cv.glmnet(x = xdummy2.train, y = y.train, alpha = 1, nlambda = 1000)
+dummy <- glmnet(xdummy2.train, y.train, alpha = 1, lambda = dummy.cv$lambda.min)
+
+coef(dummy)
+
+dr.maritl <- model.matrix(~wage.test $ maritl - 1)
+dr.race <- model.matrix(~wage.test $ race - 1)  
+dr.education <- model.matrix(~wage.test $ education - 1)
+dr.jobclass <- model.matrix(~wage.test $ jobclass - 1)
+dr.health <- model.matrix(~wage.test $ health - 1)
+dr.health_ins <- model.matrix(~wage.test $ health_ins - 1)
+xdummy2.test <- cbind(dr.maritl[,-2], dr.race[,-2], dr.education[,-2], dr.jobclass[,-2], dr.health[,-2], dr.health_ins[,-2], wage.test$age)
+y.test <- data.matrix(wage.test $ wage)
+lasso.pre.dummy <- predict(dummy, xdummy2.test, s = dummy.cv$lambda.min)
+MSE.lasso.dummy <- mean ((wage.test$wage - lasso.pre.dummy) ^2)
+```
+
+Effect Coding
+MSE.lasso.effect = 1188.507
+```{r}
+contrasts(wage.train$maritl) = contr.sum(5)
+contrasts(wage.train$race) = contr.sum(4)
+contrasts(wage.train$education) = contr.sum(5)
+contrasts(wage.train$jobclass) = contr.sum(2)  
+contrasts(wage.train$health) = contr.sum(2) 
+contrasts(wage.train$health_ins) = contr.sum(2) 
+reffect.maritl <- model.matrix(~maritl, data = wage.train, contrasts.arg = contr.sum(5))
+reffect.race <- model.matrix(~race, data = wage.train)
+reffect.education <- model.matrix(~education, data = wage.train)
+reffect.jobclass <- model.matrix(~jobclass, data = wage.train)
+reffect.health <- model.matrix(~health, data = wage.train)
+reffect.health_ins <- model.matrix(~health_ins , data = wage.train)
+xeffect.train <- cbind(reffect.maritl[,-1], reffect.race[,-1], reffect.education[,-1], reffect.jobclass[,-1], reffect.health[,-1], reffect.health_ins[,-1], wage.train$age)
+effect.cv = cv.glmnet (x = xeffect.train, y = y.train, alpha = 1, nlambda = 1000)
+effect <- glmnet(xeffect.train, y.train, alpha = 1, lambda = effect.cv$lambda.min)
+
+coef(effect)
+
+contrasts(wage.test$maritl) = contr.sum(5)
+contrasts(wage.test$race) = contr.sum(4)
+contrasts(wage.test$education) = contr.sum(5)
+contrasts(wage.test$jobclass) = contr.sum(2)  
+contrasts(wage.test$health) = contr.sum(2) 
+contrasts(wage.test$health_ins) = contr.sum(2)
+teffect.maritl <- model.matrix(~maritl, data = wage.test)
+teffect.race <- model.matrix(~race, data = wage.test)
+teffect.education <- model.matrix(~education, data = wage.test)
+teffect.jobclass <- model.matrix(~jobclass, data = wage.test)
+teffect.health <- model.matrix(~health, data = wage.test)
+teffect.health_ins <- model.matrix(~health_ins, data = wage.test)
+xeffect.test <- cbind(teffect.maritl[,-1], teffect.race[,-1], teffect.education[,-1], teffect.jobclass[,-1], teffect.health[,-1], teffect.health_ins[,-1], wage.test$age)
+lasso.pre.effect <- predict(effect, xeffect.test, s = effect.cv$lambda.min)
+MSE.lasso.effect <- mean ((wage.test$wage - lasso.pre.effect) ^2)
+```
+
+Helmert Coding
+MSE.lasso.helmert = 1204.492
+```{r}
+contrasts(wage.train$maritl) = contr.helmert(5)
+contrasts(wage.train$race) = contr.helmert(4)
+contrasts(wage.train$education) = contr.helmert(5)
+contrasts(wage.train$jobclass) = contr.helmert(2)  
+contrasts(wage.train$health) = contr.helmert(2) 
+contrasts(wage.train$health_ins) = contr.helmert(2)
+rhelmert.maritl <- model.matrix(~maritl, data = wage.train)
+rhelmert.race <- model.matrix(~race, data = wage.train)
+rhelmert.education <- model.matrix(~education, data = wage.train)
+rhelmert.jobclass <- model.matrix(~jobclass, data = wage.train)
+rhelmert.health <- model.matrix(~health, data = wage.train)
+rhelmert.health_ins <- model.matrix(~health_ins, data = wage.train)
+xhelmert.train <- cbind(rhelmert.maritl[,-1], rhelmert.race[,-1], rhelmert.education[,-1], rhelmert.jobclass[,-1],rhelmert.health[,-1],rhelmert.health_ins[,-1],wage.train$age )
+helmert.cv = cv.glmnet (x = xhelmert.train, y = y.train, alpha = 1, nlambda = 1000)
+helmert <- glmnet(xhelmert.train, y.train, alpha = 1, lambda = helmert.cv$lambda.min)
+
+coef(helmert)
+
+contrasts(wage.test$maritl) = contr.helmert(5)
+contrasts(wage.test$race) = contr.helmert(4)
+contrasts(wage.test$education) = contr.helmert(5)
+contrasts(wage.test$jobclass) = contr.helmert(2)  
+contrasts(wage.test$health) = contr.helmert(2) 
+contrasts(wage.test$health_ins) = contr.helmert(2)
+thelmert.maritl <- model.matrix(~maritl, data = wage.test)
+thelmert.race <- model.matrix(~race, data = wage.test)
+thelmert.education <- model.matrix(~education, data = wage.test)
+thelmertt.jobclass <- model.matrix(~jobclass, data = wage.test)
+thelmert.health <- model.matrix(~health, data = wage.test)
+thelmert.health_ins <- model.matrix(~health_ins, data = wage.test)
+xhelmert.test <- cbind(thelmert.maritl[,-1], thelmert.race[,-1], thelmert.education[,-1], thelmertt.jobclass[,-1], thelmert.health[,-1], thelmert.health_ins[,-1], wage.test$age)
+lasso.pre.helmert <- predict(helmert, xhelmert.test, s = helmert.cv$lambda.min)
+MSE.lasso.helmert <- mean ((wage.test$wage - lasso.pre.helmert) ^2)
+
+```
+
+

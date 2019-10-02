@@ -1,0 +1,135 @@
+---
+title: "Simulation_MSE"
+output: html_document
+---
+
+Load library
+```{r}
+library(dplyr)
+library ("ISLR")
+library (glmnet)
+library(gglasso)
+```
+
+Read inputs about group numbers and group means from users
+```{r}
+n <- readline(prompt = "How many groups? ")
+m <- readline(prompt = "What is Group1Mean? ")
+Groups <- as.integer(n)
+Group1Mean <- as.double(m)
+```
+
+Assign values
+```{r}
+N <- 1200 # The sample size is 1200
+coef <- c(rep(0,Groups))
+simulation <- 2000
+linearsum <- 0
+lassosum <- 0
+gglassosum_include <- 0
+gglassosum_not <- 0
+add <- FALSE
+count <- 0
+```
+
+Design data (contain one categorical variable with [# = Group] levels)
+```{r}
+design <- cbind(matrix( rep( t(diag(Groups)) , N/Groups ) , ncol = ncol(diag(Groups)) , byrow = TRUE), c(rnorm(N,)))
+y.var <- design %*% c(Group1Mean,rep(0,Groups-1),1)+rnorm(N, 0, 1)
+```
+
+Linear Regression 
+```{r}
+linearcount <- c(rep(0,Groups))
+for (i in 1:simulation){
+  samp <- sort (sample (1:N, N/2))
+  y.train <- y.var[samp,]
+  y.test <- y.var[-samp,]
+  x.train <- design[samp,]
+  x.test  <- data.frame(design[-samp,])
+  
+  linear <- lm(y.train ~ x.train - 1)
+  coef(linear)
+  
+  linear.pre <- predict(linear, x.test)
+  linear_value <- mean ((y.test - linear.pre)^2)
+  linearsum <- linearsum + linear_value
+
+  coef <- (summary(linear))$coefficients
+  for (i in 1:Groups){
+    if (coef[i,4] < 0.05)
+      linearcount[i] <- linearcount[i] + 1
+  }
+}
+linear_primary <- linearcount[1] / simulation
+linear_others <- sum(linearcount[2:Groups]) / simulation / (Groups - 1)
+MSE.linear <- linearsum / simulation
+```
+
+Fit lasso and calculate lasso type one errors for primary and other group levels
+```{r}
+lassocount <- c(rep(0,Groups))
+for (i in 1:simulation) {
+  samp <- sort (sample (1:N, N/2))
+  y.train <- y.var[samp,]
+  y.test <- y.var[-samp,]
+  x.train <- design[samp,]
+  x.test  <- design[-samp,]
+  
+  lasso.cv = cv.glmnet(x = x.train, y = y.train, alpha = 1, nlambda = 1000)
+  lassofit = glmnet(x = x.train, y.train, alpha = 1, lambda = lasso.cv$lambda.min, intercept = FALSE)
+  
+  lasso.pre <- predict(lassofit, x.test, s = lasso.cv$lambda.min)
+  lasso_value <- mean ((y.test - lasso.pre) ^2)
+  lassosum <- lassosum + lasso_value
+
+  coef(lassofit)
+  for (i in 1:Groups){
+    if ((coef(lassofit))[i + 1] != 0)
+      lassocount[i] <- lassocount[i] + 1
+  }
+}
+
+lasso_primary <- lassocount[1] / simulation
+lasso_others <- sum(lassocount[2:Groups]) / simulation / (Groups - 1)
+MSE.lasso <- lassosum / simulation
+```
+
+Fit group lasso oand calculate group lasso type one errors for primary and other group levels
+```{r}
+gglassocount <- c(rep(0,Groups))
+groupn <- c(rep(1,Groups),2)
+for (i in 1:simulation)
+{
+  add = FALSE
+  samp <- sort (sample (1:N, N/2))
+  y.train <- y.var[samp,]
+  y.test <- y.var[-samp,]
+  x.train <- design[samp,]
+  x.test  <- design[-samp,]
+  
+  group.cv = cv.gglasso(x.train,y.train,groupn,nfolds = 10,nlambda = 1000)
+  groupfit = gglasso(x.train, y.train, groupn, lambda = group.cv$lambda.min, intercept=FALSE)
+  coef(groupfit)
+  
+  group.pre <- predict (groupfit, x.test, s = group.cv$lambda.min)
+  group_value <- mean ((y.test - group.pre)^2)
+  
+  for (i in 1:Groups){
+    if ((coef(groupfit))[i + 1] != 0)
+      {gglassocount[i] <- gglassocount[i] + 1
+      gglassosum_include <- gglassosum_include + group_value
+      add = TRUE
+      count <- count + 1
+      break
+    }
+  }
+  if (!add)
+    gglassosum_not <- gglassosum_not + group_value
+}
+gglasso_primary <- gglassocount[1] / simulation
+gglasso_others <- sum(gglassocount[2:Groups]) / simulation / (Groups - 1)
+MSE.group_include <- gglassosum_include / count
+MSE.group_not <- gglassosum_not / (simulation - count)
+```
+

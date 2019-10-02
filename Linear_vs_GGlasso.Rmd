@@ -1,0 +1,62 @@
+---
+title: "Linear_vs_GGlasso"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library ("ISLR")
+library (glmnet)
+library(gglasso)
+wage.data <- Wage
+```
+
+```{r}
+linearsum <- 0
+gglassosum <- 0
+```
+
+```{r}
+samp <- sort (sample (1:3000, 250))
+wage.train <- wage.data[samp,]
+wage.test <- wage.data[-samp,]
+```
+
+```{r}
+linear <- lm(wage ~ as.factor(maritl) + as.factor(race) + as.factor(education) + as.factor(jobclass) + as.factor(health) + as.factor(health_ins) + age, data = wage.train)
+linear.pre <- predict(linear, wage.test)
+MSE.linear <- mean ((wage.test $ wage - linear.pre)^2)
+linearsum <- linearsum + MSE.linear
+```
+
+```{r}
+groupn <- c (rep(1,5), rep(2,4), rep(3,5), rep(4,2), rep(5,2), rep(6,2),rep(7,1))
+dt.maritl <- model.matrix(~wage.train $ maritl - 1)  
+dt.race <- model.matrix(~wage.train $ race - 1)  
+dt.education <- model.matrix(~wage.train $ education - 1)
+dt.jobclass <- model.matrix(~wage.train $ jobclass - 1)
+dt.health <- model.matrix(~wage.train $ health - 1)
+dt.health_ins <- model.matrix(~wage.train $ health_ins - 1)
+x.train <- cbind(dt.maritl, dt.race, dt.education,  dt.jobclass, dt.health, dt.health_ins, wage.train$age)
+y.train <- data.matrix(wage.train $ wage)
+group.cv = cv.gglasso(x.train,y.train,groupn,nfolds = 10,nlambda = 500)
+group = gglasso(x.train, y.train, groupn, lambda = group.cv$lambda.min)
+```
+
+```{r}
+dr.maritl <- model.matrix(~wage.test $ maritl - 1)
+dr.race <- model.matrix(~wage.test $ race - 1)  
+dr.education <- model.matrix(~wage.test $ education - 1)
+dr.jobclass <- model.matrix(~wage.test $ jobclass - 1)
+dr.health <- model.matrix(~wage.test $ health - 1)
+dr.health_ins <- model.matrix(~wage.test $ health_ins - 1)
+x.test <- cbind(dr.maritl, dr.race, dr.education, dr.jobclass, dr.health, dr.health_ins, wage.test$age)
+y.test <- data.matrix(wage.test $ wage)
+```
+
+```{r}
+group.pre <- predict (group, x.test, s = group.cv$lambda.min)
+MSE.group <- mean ((wage.test$wage - group.pre)^2)
+gglassosum <- gglassosum + MSE.group
+```
+

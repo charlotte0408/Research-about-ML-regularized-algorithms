@@ -1,0 +1,58 @@
+
+generate data
+```{r setup, include=FALSE}
+library(dplyr)
+library ("ISLR")
+wage.data <- Wage
+wage.new <- select(wage.data, maritl, race, education)
+maritl.mat <- model.matrix(~wage.new $ maritl - 1)
+race.mat <- model.matrix(~wage.new $ race - 1)
+education.mat <- model.matrix(~wage.new $ education - 1)
+design <- cbind(rep(1, times = 3000), maritl.mat, race.mat, education.mat)
+wage.var <- design %*% c(67, 0, 9, 0, 0, 0,0,0,0,0,0,0,0,0,0)+rnorm(3000, 0, 10)
+wage.long <- data.frame(wage.new, wage = wage.var)
+wage.N1000 <- wage.long[sample(1:3000, 1000),]
+wage.N500 <- wage.long[sample(1:3000, 500),]
+wage.N200 <- wage.long[sample(1:3000, 200),]
+wage.N50 <- wage.long[sample(1:3000, 50),]
+wage.N30 <- wage.long[sample(1:3000, 30),]
+```
+
+create training dataset and test dataset
+
+```{r}
+samp <- sort (sample (1:500, 250))
+wage500.train <- wage.N500[samp,]
+wage500.test <- wage.N500[-samp,]
+```
+
+fit lasso
+
+```{r}
+library (glmnet)
+dt500.maritl <- model.matrix(~wage500.train $ maritl - 1)
+dt500.race <- model.matrix(~wage500.train $ race - 1)
+dt500.education <- model.matrix(~wage500.train $ education - 1)
+x500.train <- cbind(dt500.maritl, dt500.race, dt500.education)
+y500.train <- data.matrix(wage500.train $ wage)
+lasso500.cv = cv.glmnet(x = x500.train, y = y500.train, alpha = 1, nlambda = 1000)
+lasso500 = glmnet(x = x500.train, y500.train, alpha = 1, lambda = lasso500.cv$lambda.min, intercept = FALSE)
+coef (lasso500)
+```
+
+fit group lasso
+
+```{r}
+library(gglasso)
+groupn <- c (rep(1,5), rep(2,4), rep(3,5))
+x500.train1 <- cbind(dt500.maritl, dt500.race, dt500.education)
+```
+
+find best penalty value for group lasso(K-fold CV)
+
+```{r}
+x500.test1 <- cbind(dr500.maritl, dr500.race, dr500.education)
+group500.cv = cv.gglasso(x500.train1,y500.train,groupn,nfolds = 10,nlambda = 1000)
+group500 = gglasso(x500.train1, y500.train, groupn, lambda = group500.cv$lambda.min, intercept=TRUE)
+coef(group500)
+```

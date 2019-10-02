@@ -1,0 +1,150 @@
+```{r}
+aussies <- read.csv("~/Desktop/aussies.csv")
+```
+
+create training dataset and test dataset
+
+```{r}
+samp <- sort (sample(1:202, 101))
+aussies.train <- aussies[samp,]
+aussies.test <- aussies[-samp,]
+```
+
+fit the linear regression model 
+
+```{r}
+lmWt.fit <- lm(Wt~ Sex+as.factor(SportN), data = aussies.train)
+summary(lmWt.fit)
+coef(lmWt.fit)
+```
+
+generate MSE predictions for linear model 
+
+```{r}
+ypred.lm <- predict(lmWt.fit, aussies.test)
+View (ypred.lm)
+MSE.lm <- mean ((aussies.test$Wt - ypred.lm) ^2)
+```
+
+fit lasso
+
+```{r}
+library (glmnet)
+dummy.train <- model.matrix(~aussies.train$Sport-1)
+x.train <- cbind (aussies.train$Sex, dummy.train)
+y.train <- data.matrix(aussies.train$Wt) 
+lmWt.la <- glmnet(x.train,y.train,alpha=1)
+```
+
+generate MSE predictions for lasso
+
+```{r}
+dummy.test <- model.matrix(~aussies.test$Sport-1)
+x.test <- cbind (aussies.test$Sex, dummy.test)
+ypred.la <- predict(lmWt.la, x.test, s = 0.01)
+MSE.la <- mean ((aussies.test$Wt - ypred.la) ^2)
+```
+
+fit group lasso
+
+```{r}
+library(gglasso)
+group <- c (1, rep(2,10))
+lmWt.gg <- gglasso(x.train,y.train, dfmax = 5, group)
+```
+
+generate MSE predictions for group lasso
+
+```{r}
+ypred.gg <- predict(lmWt.gg, x.test, s = 0.01)
+MSE.gg <- mean ((aussies.test$Wt - ypred.gg) ^2)
+```
+
+compare MSE
+
+```{r}
+MSE.lm 
+MSE.la
+MSE.gg
+```
+
+generate LOOCV cross validations for linear model
+
+```{r}
+library (boot)
+glmWt <- glm(Wt~ Sex+as.factor(SportN), data = aussies)
+cv.errlm=cv.glm(aussies,glmWt)
+CV.lm <- cv.errlm$delta[1]
+```
+
+generate LOOCV cross validations for lasso model 
+
+```{r}
+dummy <- model.matrix(~aussies$Sport-1)
+x <- cbind (aussies$Sex, dummy)
+y <- data.matrix(aussies$Wt)
+cv.errla = cv.glmnet(x,y,alpha=1)
+numla <- which(cv.errla$lambda == cv.errla$lambda.min)
+CV.la <- cv.errla$cvm[numla]
+```
+
+generate LOOCV cross validations for grouped lasso model 
+
+```{r}
+dummy <- model.matrix(~aussies$Sport-1)
+x <- cbind (aussies$Sex, dummy)
+y <- data.matrix(aussies$Wt)
+group <- c (1, rep(2,10))
+cv.errgg = cv.gglasso(x,y,group,nfolds = nrow(aussies))
+numgg <- which(cv.errgg$lambda == cv.errgg$lambda.min)
+CV.gg <- cv.errgg$cvm[numgg]
+```
+
+compare MSE-LOOCV
+
+```{r}
+CV.lm
+CV.la
+CV.gg
+```
+
+generate K-fold CV for linear model 
+
+```{r}
+library (boot)
+glmWt <- glm(Wt~ Sex+as.factor(SportN), data = aussies)
+cv.errlm10=cv.glm(aussies,glmWt, K = 10)
+CV.lm10 <- cv.errlm10$delta[1]
+```
+
+generte K-fold CV for lasso model 
+
+```{r}
+dummy <- model.matrix(~aussies$Sport-1)
+x <- cbind (aussies$Sex, dummy)
+y <- data.matrix(aussies$Wt)
+cv.errla10 = cv.glmnet(x,y,alpha=1,nfolds = 10)
+numla10 <- which(cv.errla10$lambda == cv.errla10$lambda.min)
+CV.la10 <- cv.errla10$cvm[numla10]
+```
+
+generate K-fold for grouped lasso model
+
+```{r}
+dummy <- model.matrix(~aussies$Sport-1)
+x <- cbind (aussies$Sex, dummy)
+y <- data.matrix(aussies$Wt)
+group <- c (1, rep(2,10))
+cv.errgg10 = cv.gglasso(x,y,group,nfolds = 10)
+numgg10 <- which(cv.errgg10$lambda == cv.errgg10$lambda.min)
+CV.gg10 <- cv.errgg10$cvm[numgg10]
+```
+
+compare MSE-K-fold
+
+```{r}
+CV.lm10
+CV.la10
+CV.gg10
+```
+
